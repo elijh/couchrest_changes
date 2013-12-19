@@ -21,6 +21,7 @@ module CouchRest
         init_logger
         log_loaded_configs(loaded.compact)
         logger.info "Observing #{couch_host_without_password}"
+        return self
       end
 
       def couch_host(conf = nil)
