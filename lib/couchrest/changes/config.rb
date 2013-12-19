@@ -13,7 +13,7 @@ module CouchRest
       attr_accessor :options
 
       def load(base_dir, *configs)
-        @base_dir = base_dir
+        @base_dir = Pathname.new(base_dir)
         loaded = configs.collect do |file_path|
           file = find_file(file_path)
           load_config(file)
@@ -95,12 +95,9 @@ module CouchRest
       end
 
       def find_file(file_path)
-        return nil unless file_path
-        if defined? CWD
-          return File.expand_path(file_path, CWD)  if File.exists?(File.expand_path(file_path, CWD))
-        end
-        return File.expand_path(file_path, @base_dir) if File.exists?(File.expand_path(file_path, @base_dir))
-        return nil
+        return unless file_path
+        filenames = [Pathname.new(file_path), @base_dir + file_path]
+        filenames.find{|f| f.file?}
       end
 
       def log_loaded_configs(files)

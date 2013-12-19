@@ -1,5 +1,6 @@
 require 'couchrest'
 require 'fileutils'
+require 'pathname'
 
 require 'couchrest/changes/config'
 
