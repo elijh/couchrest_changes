@@ -40,12 +40,16 @@ module CouchRest
     def listen
       logger.info "listening..."
       logger.debug "Starting at sequence #{since}"
-      result = db.changes :feed => :continuous, :since => since, :heartbeat => 1000 do |hash|
+      result = db.changes feed_options do |hash|
         callbacks(hash)
         store_seq(hash["seq"])
       end
       logger.info "couch stream ended unexpectedly."
       logger.debug result.inspect
+    rescue MultiJson::LoadError
+      # appearently MultiJson has issues with the end of the
+      # couch stream if we do not use the continuous feed.
+      # For now we just catch the exception and proceed.
     end
 
     protected
@@ -56,6 +60,14 @@ module CouchRest
 
     def db
       @db
+    end
+
+    def feed_options
+      if Config.flags.include?('--run-once')
+        { :since => since }
+      else
+        { :feed => :continuous, :since => since, :heartbeat => 1000 }
+      end
     end
 
     def since
