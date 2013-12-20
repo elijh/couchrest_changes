@@ -11,7 +11,7 @@ users = CouchRest::Changes.new('users')
 Callbacks can be defined in blocks:
 ```ruby
 users.created do |hash|
-  puts "A new user was created with the id: #{hash[:id]}
+  puts "A new user was created with the id: #{hash[:id]}"
 end
 ```
 
@@ -57,4 +57,12 @@ seq_file: "/var/log/couch_changes_users.seq"
 # Configure log_file like this if you want to log to a file instead of syslog:
 # log_file: "/var/log/couch_changes.log"
 log_level: debug
+
+options:
+  your_own_options: "go here"
 ```
+
+Examples
+------------------------
+
+See [tapicero](https://github.com/leapcode/tapicero) for a daemon that uses CouchRest::Changes. Historically CouchRest::Changes was extracted from tapicero.
