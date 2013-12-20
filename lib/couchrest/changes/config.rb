@@ -11,6 +11,7 @@ module CouchRest
       attr_writer :log_level
       attr_accessor :logger
       attr_accessor :options
+      attr_accessor :flags
 
       def load(base_dir, *configs)
         @base_dir = Pathname.new(base_dir)

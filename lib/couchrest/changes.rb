@@ -13,8 +13,7 @@ module CouchRest
       db_name = Config.complete_db_name(db_name)
       logger.info "Tracking #{db_name}"
       @db = CouchRest.new(Config.couch_host).database(db_name)
-      @seq_filename = Config.seq_file
-      read_seq(@seq_filename)
+      read_seq(Config.seq_file) unless Config.flags.include?('--rerun')
     end
 
     # triggered when a document was newly created
@@ -85,7 +84,7 @@ module CouchRest
       logger.debug "Looking up sequence here: #{seq_filename}"
       FileUtils.touch(seq_filename)
       unless File.writable?(seq_filename)
-        raise StandardError.new("Can't access sequence file")
+        raise StandardError.new("Can't write to sequence file #{seq_filename}")
       end
       @since = File.read(seq_filename)
       if @since == ''
@@ -99,7 +98,7 @@ module CouchRest
     end
 
     def store_seq(seq)
-      File.write @seq_filename, MultiJson.dump(seq)
+      File.write Config.seq_file, MultiJson.dump(seq)
     end
 
     #
