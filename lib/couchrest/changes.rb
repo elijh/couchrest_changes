@@ -14,6 +14,7 @@ module CouchRest
       logger.info "Tracking #{db_name}"
       @db = CouchRest.new(Config.couch_host).database(db_name)
       read_seq(Config.seq_file) unless Config.flags.include?('--rerun')
+      check_seq
     end
 
     # triggered when a document was newly created
@@ -80,21 +81,24 @@ module CouchRest
       end
     end
 
-    def read_seq(seq_filename)
-      logger.debug "Looking up sequence here: #{seq_filename}"
-      FileUtils.touch(seq_filename)
-      unless File.writable?(seq_filename)
-        raise StandardError.new("Can't write to sequence file #{seq_filename}")
+    def read_seq(filename)
+      logger.debug "Looking up sequence here: #{filename}"
+      FileUtils.touch(filename)
+      unless File.writable?(filename)
+        raise StandardError.new("Can't write to sequence file #{filename}")
       end
-      @since = File.read(seq_filename)
+      @since = File.read(filename)
+    rescue Errno::ENOENT => e
+      logger.warn "No sequence file found. Starting from scratch"
+    end
+
+    def check_seq
       if @since == ''
         @since = nil
         logger.debug "Found no sequence in the file."
-      else
+      elsif @since
         logger.debug "Found sequence: #{@since}"
       end
-    rescue Errno::ENOENT => e
-      logger.warn "No sequence file found. Starting from scratch"
     end
 
     def store_seq(seq)
