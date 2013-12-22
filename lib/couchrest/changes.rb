@@ -13,7 +13,7 @@ module CouchRest
       db_name = Config.complete_db_name(db_name)
       logger.info "Tracking #{db_name}"
       @db = CouchRest.new(Config.couch_host).database(db_name)
-      read_seq(Config.seq_file) unless Config.flags.include?('--rerun')
+      read_seq(Config.seq_file) unless rerun?
       check_seq
     end
 
@@ -44,7 +44,7 @@ module CouchRest
         callbacks(hash)
         store_seq(hash["seq"])
       end
-      logger.info "couch stream ended unexpectedly."
+      logger.info "couch stream ended unexpectedly." unless run_once?
       logger.debug result.inspect
     rescue MultiJson::LoadError
       # appearently MultiJson has issues with the end of the
@@ -63,7 +63,7 @@ module CouchRest
     end
 
     def feed_options
-      if Config.flags.include?('--run-once')
+      if run_once?
         { :since => since }
       else
         { :feed => :continuous, :since => since, :heartbeat => 1000 }
@@ -127,5 +127,12 @@ module CouchRest
       return hash["last_seq"]
     end
 
+    def rerun?
+      Config.flags.include?('--rerun')
+    end
+
+    def run_once?
+      Config.flags.include?('--run-once')
+    end
   end
 end
