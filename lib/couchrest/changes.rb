@@ -9,9 +9,11 @@ module CouchRest
 
     attr_writer :logger
 
-    def initialize(db_name)
+    def initialize(db_name, options = {})
       db_name = Config.complete_db_name(db_name)
       logger.info "Tracking #{db_name}"
+      logger.debug "Options: #{options.inspect}" if options.keys.any?
+      @options = options
       @db = CouchRest.new(Config.couch_host).database(db_name)
       read_seq(Config.seq_file) unless rerun?
       check_seq
@@ -67,7 +69,7 @@ module CouchRest
         { :since => since }
       else
         { :feed => :continuous, :since => since, :heartbeat => 1000 }
-      end
+      end.merge @options
     end
 
     def since
