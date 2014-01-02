@@ -45,7 +45,7 @@ module CouchRest
       end
 
       def app_name
-        @app_name ||= Pathname.new($0).basename
+        @app_name ||= Pathname.new($0).basename.to_s
       end
 
       private
