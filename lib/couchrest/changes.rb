@@ -46,12 +46,13 @@ module CouchRest
         callbacks(hash)
         store_seq(hash["seq"])
       end
-      logger.info "couch stream ended unexpectedly." unless run_once?
-      logger.debug result.inspect
-    rescue MultiJson::LoadError
-      # appearently MultiJson has issues with the end of the
-      # couch stream if we do not use the continuous feed.
-      # For now we just catch the exception and proceed.
+      raise EOFError
+    # appearently MultiJson has issues with the end of the couch stream.
+    # So sometimes we get a MultiJson::LoadError instead...
+    rescue MultiJson::LoadError, EOFError, RestClient::ServerBrokeConnection
+      return if run_once?
+      log_and_recover(result)
+      retry
     end
 
     protected
@@ -117,6 +118,13 @@ module CouchRest
 
     def store_seq(seq)
       File.write Config.seq_file, MultiJson.dump(seq)
+    end
+
+    def log_and_recover(result)
+      logger.info "Couch stream ended unexpectedly."
+      logger.debug result.inspect if result
+      logger.info "Will retry in 15 seconds."
+      sleep 15
     end
 
     #
