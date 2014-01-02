@@ -5,6 +5,7 @@ module CouchRest
     module Config
       extend self
 
+      attr_writer :app_name
       attr_accessor :connection
       attr_accessor :seq_file
       attr_accessor :log_file
@@ -43,6 +44,10 @@ module CouchRest
          join('_')
       end
 
+      def app_name
+        @app_name ||= Pathname.new($0).basename
+      end
+
       private
 
       def init_logger
@@ -51,7 +56,7 @@ module CouchRest
           @logger = Logger.new(log_file)
         else
           require 'syslog/logger'
-          @logger = Syslog::Logger.new('leap_key_daemon')
+          @logger = Syslog::Logger.new(app_name)
         end
         @logger.level = Logger.const_get(log_level.upcase)
       end
