@@ -14,7 +14,10 @@ module CouchRest
       info "Tracking #{db_name}"
       debug "Options: #{options.inspect}" if options.keys.any?
       @options = options
-      @db = CouchRest.new(Config.couch_host).database(db_name)
+      unless @db = CouchRest.new(Config.couch_host).database(db_name)
+        logger.error "Database #{db_name} not found!"
+        raise RuntimeError "Database #{db_name} not found!"
+      end
       read_seq(Config.seq_file) unless rerun?
       check_seq
     end
