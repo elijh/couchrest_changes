@@ -11,8 +11,8 @@ module CouchRest
 
     def initialize(db_name, options = {})
       db_name = Config.complete_db_name(db_name)
-      logger.info "Tracking #{db_name}"
-      logger.debug "Options: #{options.inspect}" if options.keys.any?
+      info "Tracking #{db_name}"
+      debug "Options: #{options.inspect}" if options.keys.any?
       @options = options
       @db = CouchRest.new(Config.couch_host).database(db_name)
       read_seq(Config.seq_file) unless rerun?
@@ -40,29 +40,23 @@ module CouchRest
     end
 
     def listen
-      logger.info "listening..."
-      logger.debug "Starting at sequence #{since}"
+      info "listening..."
+      debug "Starting at sequence #{since}"
       result = db.changes feed_options do |hash|
+        @retry_count = 0
         callbacks(hash)
         store_seq(hash["seq"])
       end
-      logger.info "couch stream ended unexpectedly." unless run_once?
-      logger.debug result.inspect
-    rescue MultiJson::LoadError
-      # appearently MultiJson has issues with the end of the
-      # couch stream if we do not use the continuous feed.
-      # For now we just catch the exception and proceed.
+      raise EOFError
+    # appearently MultiJson has issues with the end of the couch stream.
+    # So sometimes we get a MultiJson::LoadError instead...
+    rescue MultiJson::LoadError, EOFError, RestClient::ServerBrokeConnection
+      return if run_once?
+      log_and_recover(result)
+      retry
     end
 
     protected
-
-    def logger
-      logger ||= Config.logger
-    end
-
-    def db
-      @db
-    end
 
     def feed_options
       if run_once?
@@ -96,27 +90,36 @@ module CouchRest
     end
 
     def read_seq(filename)
-      logger.debug "Looking up sequence here: #{filename}"
+      debug "Looking up sequence here: #{filename}"
       FileUtils.touch(filename)
       unless File.writable?(filename)
         raise StandardError.new("Can't write to sequence file #{filename}")
       end
       @since = File.read(filename)
     rescue Errno::ENOENT => e
-      logger.warn "No sequence file found. Starting from scratch"
+      warn "No sequence file found. Starting from scratch"
     end
 
     def check_seq
       if @since == ''
         @since = nil
-        logger.debug "Found no sequence in the file."
+        debug "Found no sequence in the file."
       elsif @since
-        logger.debug "Found sequence: #{@since}"
+        debug "Found sequence: #{@since}"
       end
     end
 
     def store_seq(seq)
       File.write Config.seq_file, MultiJson.dump(seq)
+    end
+
+    def log_and_recover(result)
+      debug result.inspect if result
+      info "Couch stream ended unexpectedly."
+      info "Will retry in 15 seconds."
+      info "Retried #{retry_count} times so far."
+      sleep 15
+      @retry_count += 1
     end
 
     #
@@ -125,7 +128,6 @@ module CouchRest
     #
     def fetch_last_seq
       hash = db.changes :limit => 1, :descending => true
-      logger.info "starting at seq: " + hash["last_seq"]
       return hash["last_seq"]
     end
 
@@ -136,5 +138,39 @@ module CouchRest
     def run_once?
       Config.flags.include?('--run-once')
     end
+
+    def info(message)
+      return unless log_attempt?
+      logger.info message
+    end
+
+    def debug(message)
+      return unless log_attempt?
+      logger.debug message
+    end
+
+    def warn(message)
+      return unless log_attempt?
+      logger.warn message
+    end
+
+    # let's not clutter the logs if couch is down for a longer time.
+    def log_attempt?
+      [0, 1, 2, 4, 8, 20, 40, 120].include?(retry_count) ||
+        retry_count % 240 == 0
+    end
+
+    def retry_count
+      @retry_count ||= 0
+    end
+
+    def logger
+      logger ||= Config.logger
+    end
+
+    def db
+      @db
+    end
+
   end
 end
