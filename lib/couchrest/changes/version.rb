@@ -1,5 +1,5 @@
 module CouchRest
-  class Changes
+  module Changes
     VERSION = "0.0.5"
   end
 end

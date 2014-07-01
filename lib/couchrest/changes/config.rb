@@ -1,7 +1,7 @@
 require 'yaml'
 
 module CouchRest
-  class Changes
+  module Changes
     module Config
       extend self
 
@@ -20,6 +20,7 @@ module CouchRest
           file = find_file(file_path)
           load_config(file)
         end
+        self.flags ||= []
         init_logger
         log_loaded_configs(loaded.compact)
         logger.info "Observing #{couch_host_without_password}"
