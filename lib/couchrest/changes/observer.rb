@@ -48,9 +48,13 @@ module CouchRest::Changes
     # appearently MultiJson has issues with the end of the couch stream.
     # So sometimes we get a MultiJson::LoadError instead...
     rescue MultiJson::LoadError, EOFError, RestClient::ServerBrokeConnection
-      return if run_once?
-      log_and_recover(result)
-      retry
+      retry if retry_without_sequence?(result) || retry_later?
+      info "Couch stream ended."
+    end
+
+    def last_sequence
+      hash = db.changes :limit => 1, :descending => true
+      return hash["last_seq"]
     end
 
     protected
@@ -64,7 +68,7 @@ module CouchRest::Changes
     end
 
     def since
-      @since ||= 0  # fetch_last_seq
+      @since ||= 0  # last_sequence
     end
 
     def callbacks(hash)
@@ -110,32 +114,23 @@ module CouchRest::Changes
       File.write Config.seq_file, MultiJson.dump(seq)
     end
 
-    def log_and_recover(result)
-      info "Couch stream ended unexpectedly."
-      recover_from(result) if result
+    def retry_without_sequence?(result)
+      return unless malformated_sequence?(result)
+      @since = nil
+      info "Trying to start from scratch."
+    end
+
+    def malformated_sequence?(result)
+      reason = result && result.respond_to?(:keys) && result["reason"]
+      reason && ( reason.include?('since') || reason == 'badarg' )
+    end
+
+    def retry_later?
+      return unless rerun?
       info "Will retry in 15 seconds."
       info "Retried #{retry_count} times so far."
       sleep 15
       @retry_count += 1
-    end
-
-    def recover_from(result)
-      debug result.inspect
-      return unless result.respond_to?(:keys) && reason = result["reason"]
-      info reason
-      if reason.include?('since')
-        @since = nil
-        info "Trying to start from scratch."
-      end
-    end
-
-    #
-    # UNUSED: this is useful for only following new sequences.
-    # might also require .to_json to work on bigcouch.
-    #
-    def fetch_last_seq
-      hash = db.changes :limit => 1, :descending => true
-      return hash["last_seq"]
     end
 
     def rerun?
