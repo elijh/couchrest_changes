@@ -39,17 +39,21 @@ module CouchRest::Changes
     def listen
       info "listening..."
       debug "Starting at sequence #{since}"
+      last = nil
       result = db.changes feed_options do |hash|
+        last = hash
         @retry_count = 0
-        callbacks(hash)
+        callbacks(hash) if hash_for_change?(hash)
         store_seq(hash["seq"])
       end
       raise EOFError
     # appearently MultiJson has issues with the end of the couch stream.
     # So sometimes we get a MultiJson::LoadError instead...
     rescue MultiJson::LoadError, EOFError, RestClient::ServerBrokeConnection
-      retry if retry_without_sequence?(result) || retry_later?
       info "Couch stream ended."
+      debug result.inspect
+      debug last.inspect
+      retry if retry_without_sequence?(result, last) || retry_later?
     end
 
     def last_sequence
@@ -74,7 +78,7 @@ module CouchRest::Changes
     def callbacks(hash)
       # let's not track design document changes
       return if hash['id'].start_with? '_design/'
-      return unless changes = hash["changes"]
+      changes = hash["changes"]
       changed(hash)
       return deleted(hash) if hash["deleted"]
       return created(hash) if changes[0]["rev"].start_with?('1-')
@@ -114,15 +118,20 @@ module CouchRest::Changes
       File.write Config.seq_file, MultiJson.dump(seq)
     end
 
-    def retry_without_sequence?(result)
-      return unless malformated_sequence?(result)
-      @since = nil
-      info "Trying to start from scratch."
+    def retry_without_sequence?(result, last_hash)
+      if malformated_sequence?(result) || malformated_sequence?(last_hash)
+        @since = nil
+        info "Trying to start from scratch."
+      end
     end
 
     def malformated_sequence?(result)
       reason = result && result.respond_to?(:keys) && result["reason"]
       reason && ( reason.include?('since') || reason == 'badarg' )
+    end
+
+    def hash_for_change?(hash)
+      hash["id"] && hash["changes"]
     end
 
     def retry_later?
