@@ -66,3 +66,10 @@ Examples
 ------------------------
 
 See [tapicero](https://github.com/leapcode/tapicero) for a daemon that uses CouchRest::Changes. Historically CouchRest::Changes was extracted from tapicero.
+
+Known Issues
+-------------
+
+* CouchRest will miss the first change in a continuous feed.
+  https://github.com/couchrest/couchrest/pull/104 has a fix.
+  You might want to monkeypatch it.
