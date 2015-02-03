@@ -49,10 +49,10 @@ module CouchRest::Changes
       raise EOFError
     # appearently MultiJson has issues with the end of the couch stream.
     # So sometimes we get a MultiJson::LoadError instead...
-    rescue MultiJson::LoadError, EOFError, RestClient::ServerBrokeConnection
-      info "Couch stream ended."
-      debug result.inspect
-      debug last.inspect
+    rescue MultiJson::LoadError, EOFError, RestClient::ServerBrokeConnection => exc
+      error "Couch stream ended - #{exc.class}"
+      debug result.inspect if result
+      debug last.inspect if last
       retry if retry_without_sequence?(result, last) || retry_later?
     end
 
@@ -163,6 +163,11 @@ module CouchRest::Changes
     def warn(message)
       return unless log_attempt?
       logger.warn message
+    end
+
+    def error(message)
+      return unless log_attempt?
+      logger.error message
     end
 
     # let's not clutter the logs if couch is down for a longer time.
