@@ -20,7 +20,7 @@ module CouchRest::Changes
         Config.logger.error "Database #{db_name} not found!"
         raise RuntimeError "Database #{db_name} not found!"
       end
-      if Config.connection[:netrc]
+      if Config.connection[:netrc] && !Config.connection[:netrc].empty?
         @db_stream = CouchRest.new(Config.couch_host_no_auth).database(db_name)
         streamer = @db_stream.instance_variable_get('@streamer') # cheating, not exposed.
         streamer.default_curl_opts += " --netrc-file \"#{Config.connection[:netrc]}\""
