@@ -21,8 +21,9 @@ To start listening just call
 users.listen
 ```
 
-This program is written in Ruby and is distributed under the same license as
-CouchRest (Apache License, Version 2.0 http://www.apache.org/licenses/).
+This program is copyright 2015 LEAP Encryption Access Project. It
+distributed under the same license as CouchRest (Apache License, Version 2.0
+http://www.apache.org/licenses/).
 
 Installation
 ---------------------

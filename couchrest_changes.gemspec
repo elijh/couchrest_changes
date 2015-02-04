@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.summary     = "CouchRest::Changes - Observe a couch database for changes and react upon them"
   s.description = "Watches the couch database for changes and triggers callbacks defined for creation, deletes and updates."
 
-  s.files = Dir["{lib}/**/*"] + ["Rakefile", "Readme.md"]
+  s.files = Dir["{lib}/**/*"] + ["Rakefile", "README.md"]
   s.test_files = Dir["test/**/*"]
 
   s.add_dependency "couchrest", "~> 1.1.3"
