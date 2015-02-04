@@ -1,4 +1,43 @@
 module CouchRest::Changes
+
+  #
+  # CouchRest uses curl for 'streaming' requests
+  # (requests with a block passed to the db).
+  #
+  # Unfortunately, this leaks the username and password in the process list.
+  # We don't want to do this. So, we create two seperate CouchRest::Database
+  # instances: one that is for normal requests and one that is used for
+  # streaming requests. The streaming one we hack to use netrc file in order
+  # to keep authentication info out of the process list.
+  #
+  # If no netrc file is configure, then this DatabaseProxy just uses the
+  # regular db.
+  #
+  class DatabaseProxy
+    def initialize(db_name)
+      @db = CouchRest.new(Config.couch_host).database(db_name)
+      unless @db
+        Config.logger.error "Database #{db_name} not found!"
+        raise RuntimeError "Database #{db_name} not found!"
+      end
+      if Config.connection[:netrc]
+        @db_stream = CouchRest.new(Config.couch_host_no_auth).database(db_name)
+        streamer = @db_stream.instance_variable_get('@streamer') # cheating, not exposed.
+        streamer.default_curl_opts += " --netrc-file \"#{Config.connection[:netrc]}\""
+      else
+        @db_stream = @db
+      end
+    end
+
+    def changes(*args, &block)
+      if block
+        @db_stream.changes(*args, &block)
+      else
+        @db.changes(*args)
+      end
+    end
+  end
+
   class Observer
 
     attr_writer :logger
@@ -8,10 +47,7 @@ module CouchRest::Changes
       info "Tracking #{db_name}"
       debug "Options: #{options.inspect}" if options.keys.any?
       @options = options
-      unless @db = CouchRest.new(Config.couch_host).database(db_name)
-        logger.error "Database #{db_name} not found!"
-        raise RuntimeError "Database #{db_name} not found!"
-      end
+      @db = DatabaseProxy.new(db_name)
       read_seq(Config.seq_file) unless rerun?
       check_seq
     end
@@ -40,7 +76,7 @@ module CouchRest::Changes
       info "listening..."
       debug "Starting at sequence #{since}"
       last = nil
-      result = db.changes feed_options do |hash|
+      result = @db.changes(feed_options) do |hash|
         last = hash
         @retry_count = 0
         callbacks(hash) if hash_for_change?(hash)
@@ -57,7 +93,7 @@ module CouchRest::Changes
     end
 
     def last_sequence
-      hash = db.changes :limit => 1, :descending => true
+      hash = @db.changes :limit => 1, :descending => true
       return hash["last_seq"]
     end
 
@@ -182,10 +218,6 @@ module CouchRest::Changes
 
     def logger
       logger ||= Config.logger
-    end
-
-    def db
-      @db
     end
 
   end

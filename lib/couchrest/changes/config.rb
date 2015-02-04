@@ -34,6 +34,10 @@ module CouchRest
         "#{conf[:protocol]}://#{userinfo}#{conf[:host]}:#{conf[:port]}"
       end
 
+      def couch_host_no_auth
+        couch_host connection.merge({:password => nil, :username => nil})
+      end
+
       def couch_host_without_password
         couch_host connection.merge({:password => nil})
       end
