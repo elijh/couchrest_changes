@@ -1,7 +1,8 @@
 CouchRest::Changes - keeping track of changes to your couch
 ------------------------------------------------------------
 
-``CouchRest::Changes`` let's you observe a couch database for changes and react upon them.
+``CouchRest::Changes`` let's you observe a couch database for changes and react
+upon them.
 
 Following the changes of a couch is as easy as
 ```ruby
@@ -20,16 +21,13 @@ To start listening just call
 users.listen
 ```
 
-This program is written in Ruby and is distributed under the following license:
-
-> GNU Affero General Public License
-> Version 3.0 or higher
-> http://www.gnu.org/licenses/agpl-3.0.html
+This program is written in Ruby and is distributed under the same license as
+CouchRest (Apache License, Version 2.0 http://www.apache.org/licenses/).
 
 Installation
 ---------------------
 
-Just add couchrest_changes to your gemfile.
+Just add couchrest_changes to your Gemfile.
 
 Configuration
 ---------------------
@@ -49,6 +47,7 @@ connection:
   password: ~
   prefix: ""
   suffix: ""
+  netrc: ""
 
 # file to store the last processed user record in so we can resume after
 # a restart:
@@ -61,6 +60,8 @@ log_level: debug
 options:
   your_own_options: "go here"
 ```
+
+Normally, CouchRest leaks the CouchDB authentication credentials in the process list. If present, the ``netrc`` configuration value will allow CouchRest::Changes to use the netrc file and keep the credentials out of the process list.
 
 Examples
 ------------------------
