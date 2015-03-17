@@ -4,7 +4,5 @@ services:
   - couchdb
 notifications:
   email: false
-before_script:
-  - "/bin/bash test/setup_couch.sh"
 after_script:
   - "cat /tmp/couchrest_changes_test.log"

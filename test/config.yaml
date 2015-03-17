@@ -7,13 +7,11 @@ connection:
   protocol: "http"
   host: "localhost"
   port: 5984
-  username: anna
-  password: secret
+  username: "anna"
+  password: "secret"
   prefix: "couchrest_changes_test"
   suffix: ""
 
-# file to store the last processed user record in so we can resume after
-# a restart:
-seq_file: "/tmp/couchrest_changes_test.seq"
+seq_dir: "/tmp/couchrest_changes"
 log_file: "/tmp/couchrest_changes_test.log"
 log_level: debug

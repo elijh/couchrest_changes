@@ -76,7 +76,7 @@ end
 ##
 
 Rake::TestTask.new do |t|
-  t.pattern = "test/unit/*_test.rb"
+  t.pattern = "test/**/*_test.rb"
 end
 task :default => :test
 

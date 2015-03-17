@@ -7,7 +7,7 @@ module CouchRest
 
       attr_writer :app_name
       attr_accessor :connection
-      attr_accessor :seq_file
+      attr_accessor :seq_dir
       attr_accessor :log_file
       attr_writer :log_level
       attr_accessor :logger
@@ -20,6 +20,9 @@ module CouchRest
           file = find_file(file_path)
           load_config(file)
         end
+        unless loaded.compact.any?
+          raise ArgumentError.new("Could not find config file")
+        end
         self.flags ||= []
         init_logger
         log_loaded_configs(loaded.compact)
@@ -27,8 +30,12 @@ module CouchRest
         return self
       end
 
-      def couch_host(conf = nil)
-        conf ||= connection
+      def couch_host(options = nil)
+        if options
+          conf = connection.merge(options)
+        else
+          conf = connection
+        end
         userinfo = [conf[:username], conf[:password]].compact.join(':')
         userinfo += '@' unless userinfo.empty?
         "#{conf[:protocol]}://#{userinfo}#{conf[:host]}:#{conf[:port]}"
@@ -67,7 +74,7 @@ module CouchRest
       end
 
       def load_config(file_path)
-        return unless file_path
+        return nil unless file_path
         load_settings YAML.load(File.read(file_path)), file_path
         return file_path
       end

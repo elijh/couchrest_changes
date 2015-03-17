@@ -5,7 +5,7 @@ module CouchRest::Changes
   # (requests with a block passed to the db).
   #
   # Unfortunately, this leaks the username and password in the process list.
-  # We don't want to do this. So, we create two seperate CouchRest::Database
+  # We don't want to do this. So, we create two separate CouchRest::Database
   # instances: one that is for normal requests and one that is used for
   # streaming requests. The streaming one we hack to use netrc file in order
   # to keep authentication info out of the process list.
@@ -41,15 +41,20 @@ module CouchRest::Changes
   class Observer
 
     attr_writer :logger
+    attr_reader :since
 
     def initialize(db_name, options = {})
-      db_name = Config.complete_db_name(db_name)
+      @db_name = Config.complete_db_name(db_name)
       info "Tracking #{db_name}"
       debug "Options: #{options.inspect}" if options.keys.any?
       @options = options
-      @db = DatabaseProxy.new(db_name)
-      read_seq(Config.seq_file) unless rerun?
-      check_seq
+      @db = DatabaseProxy.new(@db_name)
+      setup_sequence_file(@db_name)
+      unless rerun?
+        @since = read_seq(@db_name)
+      else
+        @since = 0
+      end
     end
 
     # triggered when a document was newly created
@@ -80,7 +85,7 @@ module CouchRest::Changes
         last = hash
         @retry_count = 0
         callbacks(hash) if hash_for_change?(hash)
-        store_seq(hash["seq"])
+        store_seq(@db_name, hash["seq"])
       end
       raise EOFError
     # appearently MultiJson has issues with the end of the couch stream.
@@ -107,10 +112,6 @@ module CouchRest::Changes
       end.merge @options
     end
 
-    def since
-      @since ||= 0  # last_sequence
-    end
-
     def callbacks(hash)
       # let's not track design document changes
       return if hash['id'].start_with? '_design/'
@@ -130,33 +131,57 @@ module CouchRest::Changes
       end
     end
 
-    def read_seq(filename)
-      debug "Looking up sequence here: #{filename}"
-      FileUtils.touch(filename)
-      unless File.writable?(filename)
-        raise StandardError.new("Can't write to sequence file #{filename}")
+    #
+    # ensure the sequence file exists
+    #
+    def setup_sequence_file(db_name)
+      filename = sequence_file_name(db_name)
+      unless Dir.exists?(Config.seq_dir)
+        FileUtils.mkdir_p(Config.seq_dir)
+        unless Dir.exists?(Config.seq_dir)
+          raise StandardError.new("Can't create sequence directory #{Config.seq_dir}")
+        end
       end
-      @since = File.read(filename)
+      unless File.exists?(filename)
+        FileUtils.touch(filename)
+        unless File.writable?(filename)
+          raise StandardError.new("Can't write to sequence file #{filename}")
+        end
+      end
+    end
+
+    #
+    # reads the sequence file, e.g. (/var/run/tapicero/users.seq), returning
+    # the sequence number or zero if the sequence number could not be
+    # determined.
+    #
+    def read_seq(db_name)
+      filename = sequence_file_name(db_name)
+      debug "Looking up sequence here: #{filename}"
+      result = File.read(filename)
+      if result.empty?
+        debug "Found no sequence in the file."
+        return 0
+      else
+        debug "Found sequence: #{result}"
+        return result.to_i
+      end
     rescue Errno::ENOENT => e
       warn "No sequence file found. Starting from scratch"
+      return 0
     end
 
-    def check_seq
-      if @since == ''
-        @since = nil
-        debug "Found no sequence in the file."
-      elsif @since
-        debug "Found sequence: #{@since}"
-      end
+    def store_seq(db_name, seq)
+      File.write sequence_file_name(db_name), seq.to_i
     end
 
-    def store_seq(seq)
-      File.write Config.seq_file, MultiJson.dump(seq)
+    def sequence_file_name(db_name)
+      File.join(Config.seq_dir, db_name + '.seq')
     end
 
     def retry_without_sequence?(result, last_hash)
       if malformated_sequence?(result) || malformated_sequence?(last_hash)
-        @since = nil
+        @since = 0
         info "Trying to start from scratch."
       end
     end
