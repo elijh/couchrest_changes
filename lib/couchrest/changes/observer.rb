@@ -172,7 +172,7 @@ module CouchRest::Changes
     end
 
     def store_seq(db_name, seq)
-      File.write sequence_file_name(db_name), seq.to_i
+      File.write sequence_file_name(db_name), [seq].flatten.first.to_i
     end
 
     def sequence_file_name(db_name)
