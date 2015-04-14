@@ -3,6 +3,7 @@ require 'fileutils'
 require 'pathname'
 
 require 'couchrest/changes/config'
+require 'couchrest/changes/database_proxy'
 require 'couchrest/changes/observer'
 
 module CouchRest
